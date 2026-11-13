@@ -1,0 +1,103 @@
+html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rasca y Gana</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f4f4f9;
+            margin: 0;
+        }
+        .container {
+            position: relative;
+            width: 300px;
+            height: 150px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            overflow: hidden;
+            background-color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: #27ae60;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+        }
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>¡Rasca aquí para descubrir tu premio!</h2>
+
+    <div class="container">
+        <span id="premio">¡Ganaste un 20% de Descuento!</span>
+        <canvas id="rascaCanvas" width="300" height="150"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('rascaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Dibujar la capa opaca (lo que se va a rascar)
+        ctx.fillStyle = '#95a5a6';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Texto de ayuda sobre la capa
+        ctx.fillStyle = '#bdc3c7';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('¡Rasca aquí!', canvas.width / 2, canvas.height / 2 + 7);
+
+        // Modo de composición para "borrar" al dibujar encima
+        ctx.globalCompositeOperation = 'destination-out';
+
+        let isDrawing = false;
+
+        function getPosition(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function scratch(e) {
+            if (!isDrawing) return;
+            const pos = getPosition(e);
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 20, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Eventos de ratón
+        canvas.addEventListener('mousedown', (e) => { isDrawing = true; scratch(e); });
+        window.addEventListener('mouseup', () => { isDrawing = false; });
+        canvas.addEventListener('mousemove', scratch);
+
+        // Eventos táctiles (móviles)
+        canvas.addEventListener('touchstart', (e) => { isDrawing = true; scratch(e); e.preventDefault(); });
+        window.addEventListener('touchend', () => { isDrawing = false; });
+        canvas.addEventListener('touchmove', (e) => { scratch(e); e.preventDefault(); });
+    </script>
+</body>
+</html>
