@@ -1,103 +1,768 @@
-html
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rasca y Gana</title>
+    <title>Súper Rasca ONCE - Simulador Interactivo</title>
+    <!-- Carga de Tailwind CSS para estructura responsiva y utilidades -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fuentes de Google Fonts para tipografía llamativa y de boleto impreso -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Montserrat:ital,wght@0,600;0,800;0,900;1,900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
     <style>
+        /* Variables corporativas ONCE */
+        :root {
+            --once-green: #00843D;
+            --once-green-dark: #005c2a;
+            --once-green-light: #00a84f;
+            --once-yellow: #FFCC00;
+            --once-yellow-bright: #ffe033;
+            --once-gold: #D4AF37;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Montserrat', sans-serif;
+            background: radial-gradient(circle at center, #1a2e22 0%, #0d1711 100%);
+            min-height: 100vh;
+            margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            background-color: #f4f4f9;
-            margin: 0;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-user-select: none;
         }
-        .container {
+
+        /* Diseño del boleto físico con bordes troquelados */
+        .ticket-container {
             position: relative;
-            width: 300px;
-            height: 150px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            width: 94%;
+            max-width: 440px;
+            background: linear-gradient(145deg, var(--once-green) 0%, var(--once-green-dark) 100%);
+            border-radius: 16px;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.7),
+                0 0 0 4px var(--once-yellow),
+                0 0 25px rgba(255, 204, 0, 0.25);
             overflow: hidden;
-            background-color: #fff;
+            transition: transform 0.3s ease;
+        }
+
+        /* Efecto de textura sutil de papel de seguridad */
+        .security-pattern {
+            background-image: 
+                radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 0),
+                radial-gradient(rgba(255, 204, 0, 0.05) 1px, transparent 0);
+            background-size: 16px 16px;
+            background-position: 0 0, 8px 8px;
+        }
+
+        /* Muescas laterales estilo cupón troquelado */
+        .ticket-notch-left, .ticket-notch-right {
+            position: absolute;
+            top: 52%;
+            width: 26px;
+            height: 26px;
+            background-color: #132219;
+            border-radius: 50%;
+            transform: translateY(-50%);
+            z-index: 20;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.8);
+            border: 2px solid var(--once-yellow);
+        }
+        .ticket-notch-left { left: -15px; }
+        .ticket-notch-right { right: -15px; }
+
+        /* Tipografía 3D llamativa para el título del Rasca */
+        .rasca-title {
+            font-weight: 900;
+            font-style: italic;
+            letter-spacing: -0.03em;
+            color: var(--once-yellow);
+            text-shadow: 
+                0 2px 0 #b38f00,
+                0 4px 0 #806600,
+                0 6px 10px rgba(0, 0, 0, 0.6);
+        }
+
+        /* Etiqueta de precio circular estilo sello */
+        .price-badge {
+            background: radial-gradient(circle at 30% 30%, #ffe666, #ffbb00 70%, #cc8800 100%);
+            color: #004d23;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4), inset 0 0 0 2px #fff;
+            transform: rotate(8deg);
+        }
+
+        /* Marco dorado para el área de rascado */
+        .scratch-frame {
+            background: linear-gradient(135deg, #fff3a1 0%, #d4af37 30%, #997a15 70%, #ffdf4d 100%);
+            padding: 6px;
+            border-radius: 14px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+        }
+
+        /* Contenedor interno donde vive el premio y el canvas encima */
+        .scratch-area-wrapper {
+            position: relative;
+            width: 100%;
+            height: 210px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: repeating-linear-gradient(
+                45deg,
+                #ffffff,
+                #ffffff 12px,
+                #f4f7f5 12px,
+                #f4f7f5 24px
+            );
+            box-shadow: inset 0 3px 10px rgba(0,0,0,0.25);
+        }
+
+        /* Capa inferior con el resultado ("SIGUE JUGANDO") */
+        .prize-underlay {
+            position: absolute;
+            inset: 0;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-            font-weight: bold;
-            color: #27ae60;
+            text-align: center;
+            padding: 1rem;
+            z-index: 1;
         }
-        canvas {
+
+        /* Canvas rascable superior */
+        #scratchCanvas {
             position: absolute;
-            top: 0;
-            left: 0;
-            cursor: pointer;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            touch-action: none; /* Evita scroll al rascar en móviles */
+            transition: opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1);
         }
-        h2 {
-            margin-bottom: 20px;
-            color: #333;
+
+        /* Clase aplicada al completar el rascado */
+        .canvas-revealed {
+            opacity: 0 !important;
+            pointer-events: none;
+        }
+
+        /* Cursor personalizado de moneda dorada flotante */
+        #coinCursor {
+            position: fixed;
+            width: 44px;
+            height: 44px;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            display: none;
+            filter: drop-shadow(0 6px 8px rgba(0,0,0,0.5));
+            transition: transform 0.06s ease-out;
+        }
+
+        #coinCursor.scratching {
+            transform: translate(-50%, -50%) scale(0.9) rotate(-18deg);
+        }
+
+        /* Ocultar cursor nativo del sistema solo dentro del canvas en dispositivos con puntero */
+        @media (pointer: fine) {
+            #scratchCanvas {
+                cursor: none;
+            }
+        }
+
+        /* Número de serie estilo matriz de puntos / impresora térmica */
+        .serial-font {
+            font-family: 'Share Tech Mono', monospace;
+            letter-spacing: 0.12em;
+        }
+
+        /* Animación de entrada para el sello de Sigue Jugando */
+        @keyframes stampPop {
+            0% { transform: scale(0.85); opacity: 0.7; }
+            60% { transform: scale(1.06); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .animate-stamp {
+            animation: stampPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
     </style>
 </head>
-<body>
+<body class="p-3 sm:p-6">
 
-    <h2>¡Rasca aquí para descubrir tu premio!</h2>
-
-    <div class="container">
-        <span id="premio">¡Ganaste un 20% de Descuento!</span>
-        <canvas id="rascaCanvas" width="300" height="150"></canvas>
+    <!-- Moneda dorada personalizada que sigue el cursor -->
+    <div id="coinCursor" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="44" height="44">
+            <defs>
+                <radialGradient id="coinGrad" cx="35%" cy="35%" r="65%">
+                    <stop offset="0%" stop-color="#FFF5B8"/>
+                    <stop offset="45%" stop-color="#FFD700"/>
+                    <stop offset="85%" stop-color="#DAA520"/>
+                    <stop offset="100%" stop-color="#996515"/>
+                </radialGradient>
+            </defs>
+            <!-- Canto de la moneda -->
+            <circle cx="34" cy="34" r="28" fill="#8B6508"/>
+            <!-- Cara principal de la moneda -->
+            <circle cx="31" cy="31" r="28" fill="url(#coinGrad)" stroke="#FFF099" stroke-width="2"/>
+            <circle cx="31" cy="31" r="22" fill="none" stroke="#B8860B" stroke-width="1.5" stroke-dasharray="3,2"/>
+            <!-- Símbolo € en relieve -->
+            <text x="31" y="40" text-anchor="middle" font-family="Montserrat, sans-serif" font-weight="900" font-size="26" fill="#8B6508">€</text>
+            <text x="30" y="39" text-anchor="middle" font-family="Montserrat, sans-serif" font-weight="900" font-size="26" fill="#FFF8DC">€</text>
+        </svg>
     </div>
 
+    <!-- Contenedor Principal del Boleto ONCE -->
+    <main class="ticket-container security-pattern border-2 border-[#004d23]">
+        
+        <!-- Muescas laterales troqueladas -->
+        <div class="ticket-notch-left"></div>
+        <div class="ticket-notch-right"></div>
+
+        <!-- Cabecera Corporativa ONCE -->
+        <header class="bg-[#006b31] border-b-4 border-[#FFCC00] px-5 pt-4 pb-3 relative">
+            <div class="flex items-center justify-between gap-2">
+                <!-- Logotipo estilizado ONCE -->
+                <div class="flex items-center gap-2.5">
+                    <div class="bg-white text-[#00843D] font-black text-xl sm:text-2xl px-2.5 py-1 rounded-md tracking-tighter shadow-md border-2 border-[#FFCC00] flex items-center">
+                        <span>ONCE</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase tracking-widest text-[#FFCC00] font-extrabold leading-none">Lotería Instantánea</span>
+                        <span class="text-white text-xs font-semibold opacity-90">Juega responsablemente</span>
+                    </div>
+                </div>
+
+                <!-- Sello de Precio -->
+                <div class="price-badge w-14 h-14 sm:w-16 sm:h-16 rounded-full flex flex-col items-center justify-center shrink-0">
+                    <span class="text-[9px] font-extrabold uppercase tracking-tight leading-none">Precio</span>
+                    <span class="text-xl sm:text-2xl font-black leading-none mt-0.5">2 €</span>
+                </div>
+            </div>
+
+            <!-- Título Llamativo del Juego -->
+            <div class="mt-3 text-center">
+                <div class="inline-block bg-[#004720]/70 px-3 py-0.5 rounded-full border border-[#FFCC00]/40 mb-1">
+                    <span class="text-[11px] font-bold text-white uppercase tracking-wider">★ Edición Especial Trébol ★</span>
+                </div>
+                <h1 class="rasca-title text-3xl sm:text-4xl uppercase leading-none">
+                    SÚPER RASCA
+                </h1>
+                <p class="text-white text-xs sm:text-sm font-bold mt-1.5 drop-shadow">
+                    ¡Rasca el área plateada y descubre tu suerte al instante!
+                </p>
+            </div>
+        </header>
+
+        <!-- Cuerpo Central: Zona de Rascado -->
+        <section class="px-5 py-5 relative">
+            <!-- Indicador superior de instrucción -->
+            <div class="flex items-center justify-between text-xs text-[#FFCC00] font-extrabold uppercase tracking-wider mb-2 px-1">
+                <span class="flex items-center gap-1.5">
+                    <svg class="w-4 h-4 animate-bounce" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clip-rule="evenodd"/>
+                    </svg>
+                    Zona de Juego
+                </span>
+                <span id="progressBadge" class="bg-[#004d23] text-white px-2 py-0.5 rounded text-[11px] border border-[#FFCC00]/30">
+                    Rascado: 0%
+                </span>
+            </div>
+
+            <!-- Marco Dorado + Área Rascable -->
+            <div class="scratch-frame">
+                <div class="scratch-area-wrapper" id="scratchContainer">
+                    
+                    <!-- CAPA INFERIOR: Mensaje "SIGUE JUGANDO" -->
+                    <div id="prizeContent" class="prize-underlay">
+                        <!-- Icono gráfico decorativo (Trébol / Estrella de ánimo) -->
+                        <div class="w-12 h-12 rounded-full bg-[#00843D]/10 border-2 border-[#00843D] flex items-center justify-center mb-2 text-[#00843D]">
+                            <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C9.8 2 8 3.8 8 6c0 1.4.7 2.6 1.8 3.3C8.6 8.5 7.4 8 6 8c-2.2 0-4 1.8-4 4s1.8 4 4 4c1.4 0 2.6-.5 3.8-1.3-.9.8-1.5 1.9-1.7 3.1L7 22h10l-1.1-4.2c-.2-1.2-.8-2.3-1.7-3.1 1.2.8 2.4 1.3 3.8 1.3 2.2 0 4-1.8 4-4s-1.8-4-4-4c-1.4 0-2.6.5-3.8 1.3C15.3 8.6 16 7.4 16 6c0-2.2-1.8-4-4-4z"/>
+                            </svg>
+                        </div>
+
+                        <!-- Mensaje Principal Requerido -->
+                        <div class="bg-[#00843D] text-white px-4 py-1.5 rounded-lg shadow-md border-2 border-[#FFCC00] transform -rotate-1">
+                            <span class="block text-2xl sm:text-3xl font-black tracking-wide text-[#FFCC00] drop-shadow">
+                                SIGUE JUGANDO
+                            </span>
+                        </div>
+
+                        <p class="text-xs sm:text-sm font-extrabold text-gray-700 mt-2 uppercase tracking-tight">
+                            Este boleto no tiene premio • ¡Suerte en el próximo!
+                        </p>
+                    </div>
+
+                    <!-- CAPA SUPERIOR: Canvas Metálico Rascable -->
+                    <canvas id="scratchCanvas"></canvas>
+                </div>
+            </div>
+
+            <!-- Zona de Acción / Botón Nuevo Boleto (aparece o se resalta al terminar) -->
+            <div id="actionContainer" class="mt-4 flex flex-col items-center justify-center min-h-[44px]">
+                <p id="hintText" class="text-center text-white/85 text-xs font-medium">
+                    Usa el ratón o desliza tu dedo sobre la zona plateada para rascar.
+                </p>
+                
+                <button id="resetBtn" type="button" 
+                    class="hidden items-center gap-2 bg-[#FFCC00] hover:bg-[#ffe033] active:scale-95 text-[#004d23] font-black text-sm uppercase tracking-wider px-5 py-2.5 rounded-full shadow-lg border-2 border-white transition-all cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Volver a rascar / Nuevo boleto
+                </button>
+            </div>
+        </section>
+
+        <!-- Línea divisoria perforada -->
+        <div class="border-t-2 border-dashed border-[#FFCC00]/40 mx-4"></div>
+
+        <!-- Pie del Boleto: Número de serie, código de barras simulado y textos legales -->
+        <footer class="bg-[#005225] px-5 py-3 text-white/85">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2 bg-black/25 px-3 py-1.5 rounded border border-white/10">
+                <div>
+                    <span class="block text-[9px] uppercase text-[#FFCC00] font-bold">Nº de Serie / Boleto</span>
+                    <span id="serialNumber" class="serial-font text-xs sm:text-sm font-bold text-white">084-294810-77</span>
+                </div>
+                <!-- Código de barras decorativo SVG -->
+                <div class="bg-white px-2 py-1 rounded-sm flex items-center" title="Código de validación simulado">
+                    <svg class="h-5 w-20" viewBox="0 0 100 24" fill="#111">
+                        <rect x="2" y="0" width="2" height="24"/>
+                        <rect x="6" y="0" width="4" height="24"/>
+                        <rect x="13" y="0" width="1" height="24"/>
+                        <rect x="17" y="0" width="3" height="24"/>
+                        <rect x="24" y="0" width="2" height="24"/>
+                        <rect x="29" y="0" width="5" height="24"/>
+                        <rect x="37" y="0" width="1" height="24"/>
+                        <rect x="41" y="0" width="2" height="24"/>
+                        <rect x="46" y="0" width="4" height="24"/>
+                        <rect x="53" y="0" width="2" height="24"/>
+                        <rect x="58" y="0" width="1" height="24"/>
+                        <rect x="62" y="0" width="3" height="24"/>
+                        <rect x="68" y="0" width="4" height="24"/>
+                        <rect x="75" y="0" width="2" height="24"/>
+                        <rect x="80" y="0" width="1" height="24"/>
+                        <rect x="84" y="0" width="4" height="24"/>
+                        <rect x="91" y="0" width="2" height="24"/>
+                        <rect x="96" y="0" width="2" height="24"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Texto legal simulado en letra pequeña para máximo realismo -->
+            <p class="text-[9px] leading-tight text-white/65 text-justify">
+                SIMULACIÓN INTERACTIVA SIN VALOR COMERCIAL. En los productos de lotería instantánea de la ONCE, la participación está prohibida a menores de 18 años. Este boleto es una recreación visual con fines demostrativos. Conserve su boleto intacto; el deterioro de la zona de validación anula el mismo.
+            </p>
+        </footer>
+    </main>
+
     <script>
-        const canvas = document.getElementById('rascaCanvas');
-        const ctx = canvas.getContext('2d');
+        /**
+         * Simulador de Boleto Rasca ONCE
+         * Implementa textura metálica en HTML5 Canvas, borrado mediante globalCompositeOperation,
+         * cursor personalizado de moneda dorada, audio sintetizado sutil (Web Audio API) y detección de progreso.
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('scratchCanvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const container = document.getElementById('scratchContainer');
+            const coinCursor = document.getElementById('coinCursor');
+            const progressBadge = document.getElementById('progressBadge');
+            const resetBtn = document.getElementById('resetBtn');
+            const hintText = document.getElementById('hintText');
+            const prizeContent = document.getElementById('prizeContent');
+            const serialNumberEl = document.getElementById('serialNumber');
 
-        // Dibujar la capa opaca (lo que se va a rascar)
-        ctx.fillStyle = '#95a5a6';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Estado del rascado
+            let isDrawing = false;
+            let isRevealed = false;
+            let lastPoint = null;
+            let strokeCount = 0;
 
-        // Texto de ayuda sobre la capa
-        ctx.fillStyle = '#bdc3c7';
-        ctx.font = 'bold 20px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('¡Rasca aquí!', canvas.width / 2, canvas.height / 2 + 7);
+            // Configuración del pincel (radio de la moneda)
+            const BRUSH_RADIUS = 24;
+            // Porcentaje umbral para revelar automáticamente todo el boleto (68%)
+            const REVEAL_THRESHOLD = 68;
 
-        // Modo de composición para "borrar" al dibujar encima
-        ctx.globalCompositeOperation = 'destination-out';
+            /**
+             * Genera un número de serie aleatorio realista para cada boleto
+             */
+            function generateSerialNumber() {
+                const part1 = String(Math.floor(100 + Math.random() * 900));
+                const part2 = String(Math.floor(100000 + Math.random() * 900000));
+                const part3 = String(Math.floor(10 + Math.random() * 90));
+                serialNumberEl.textContent = `${part1}-${part2}-${part3}`;
+            }
 
-        let isDrawing = false;
+            /**
+             * Inicializa y dibuja la superficie metálica plateada/dorada del rasca
+             */
+            function initScratchSurface() {
+                // Ajustar resolución interna del canvas al tamaño real del contenedor (con soporte Retina/HiDPI)
+                const rect = container.getBoundingClientRect();
+                const dpr = window.devicePixelRatio || 1;
+                
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
 
-        function getPosition(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return {
-                x: clientX - rect.left,
-                y: clientY - rect.top
-            };
-        }
+                const width = rect.width;
+                const height = rect.height;
 
-        function scratch(e) {
-            if (!isDrawing) return;
-            const pos = getPosition(e);
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 20, 0, Math.PI * 2);
-            ctx.fill();
-        }
+                // Resetear modo de composición a normal para pintar la capa
+                ctx.globalCompositeOperation = 'source-over';
 
-        // Eventos de ratón
-        canvas.addEventListener('mousedown', (e) => { isDrawing = true; scratch(e); });
-        window.addEventListener('mouseup', () => { isDrawing = false; });
-        canvas.addEventListener('mousemove', scratch);
+                // 1. Degradado metálico plateado con reflejos dorados sutiles
+                const metalGrad = ctx.createLinearGradient(0, 0, width, height);
+                metalGrad.addColorStop(0, '#b8bec2');
+                metalGrad.addColorStop(0.22, '#eef2f5');
+                metalGrad.addColorStop(0.45, '#a8b0b5');
+                metalGrad.addColorStop(0.65, '#f5eccd'); // Destello cálido dorado
+                metalGrad.addColorStop(0.85, '#c4cacf');
+                metalGrad.addColorStop(1, '#939ba1');
 
-        // Eventos táctiles (móviles)
-        canvas.addEventListener('touchstart', (e) => { isDrawing = true; scratch(e); e.preventDefault(); });
-        window.addEventListener('touchend', () => { isDrawing = false; });
-        canvas.addEventListener('touchmove', (e) => { scratch(e); e.preventDefault(); });
+                ctx.fillStyle = metalGrad;
+                ctx.fillRect(0, 0, width, height);
+
+                // 2. Textura granular metálica (ruido fino simulado)
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+                for (let i = 0; i < 450; i++) {
+                    const rx = Math.random() * width;
+                    const ry = Math.random() * height;
+                    ctx.fillRect(rx, ry, 1.5, 1.5);
+                }
+
+                // 3. Patrón repetitivo sutil de tréboles y estrellas de seguridad
+                ctx.save();
+                ctx.fillStyle = 'rgba(0, 132, 61, 0.14)'; // Verde ONCE sutil impreso sobre la tinta
+                ctx.font = 'bold 18px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                const stepX = 46;
+                const stepY = 42;
+                for (let y = 18; y < height; y += stepY) {
+                    for (let x = 22; x < width; x += stepX) {
+                        const offsetX = (Math.floor(y / stepY) % 2 === 0) ? 0 : stepX / 2;
+                        const symbol = ((x + y) % 3 === 0) ? '♣' : '★';
+                        ctx.fillText(symbol, x + offsetX, y);
+                    }
+                }
+                ctx.restore();
+
+                // 4. Bandas diagonales de seguridad estilo tinta térmica
+                ctx.save();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+                ctx.lineWidth = 2;
+                for (let i = -height; i < width + height; i += 28) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, 0);
+                    ctx.lineTo(i - height, height);
+                    ctx.stroke();
+                }
+                ctx.restore();
+
+                // 5. Cartela central con el texto "RASCA AQUÍ"
+                ctx.save();
+                const badgeW = Math.min(230, width * 0.72);
+                const badgeH = 54;
+                const badgeX = (width - badgeW) / 2;
+                const badgeY = (height - badgeH) / 2;
+
+                // Fondo de la etiqueta central
+                ctx.fillStyle = 'rgba(0, 92, 42, 0.88)';
+                roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 10);
+                ctx.fill();
+
+                // Borde amarillo brillante
+                ctx.lineWidth = 2.5;
+                ctx.strokeStyle = '#FFCC00';
+                roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 10);
+                ctx.stroke();
+
+                // Texto "RASCA AQUÍ"
+                ctx.fillStyle = '#FFCC00';
+                ctx.font = '900 22px Montserrat, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                ctx.shadowBlur = 4;
+                ctx.shadowOffsetY = 2;
+                ctx.fillText('RASCA AQUÍ', width / 2, height / 2 + 1);
+                ctx.restore();
+
+                // Activar modo borrado para las interacciones del usuario
+                ctx.globalCompositeOperation = 'destination-out';
+            }
+
+            /**
+             * Helper para dibujar rectángulos redondeados en Canvas
+             */
+            function roundRect(context, x, y, w, h, r) {
+                context.beginPath();
+                context.moveTo(x + r, y);
+                context.arcTo(x + w, y, x + w, y + h, r);
+                context.arcTo(x + w, y + h, x, y + h, r);
+                context.arcTo(x, y + h, x, y, r);
+                context.arcTo(x, y, x + w, y, r);
+                context.closePath();
+            }
+
+            /**
+             * Obtiene las coordenadas relativas al canvas tanto para ratón como para eventos táctiles
+             */
+            function getEventCoordinates(e) {
+                const rect = canvas.getBoundingClientRect();
+                let clientX, clientY;
+
+                if (e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+
+                return {
+                    x: clientX - rect.left,
+                    y: clientY - rect.top,
+                    clientX,
+                    clientY
+                };
+            }
+
+            /**
+             * Dibuja un trazo continuo de borrado entre dos puntos para evitar huecos al mover rápido
+             */
+            function scratchLine(from, to) {
+                if (isRevealed) return;
+
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.lineWidth = BRUSH_RADIUS * 2;
+
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.stroke();
+
+                // Añadir pequeñas virutas irregulares en los bordes del trazo para realismo
+                for (let i = 0; i < 2; i++) {
+                    const offsetAngle = Math.random() * Math.PI * 2;
+                    const offsetDist = BRUSH_RADIUS * (0.7 + Math.random() * 0.4);
+                    ctx.beginPath();
+                    ctx.arc(
+                        to.x + Math.cos(offsetAngle) * offsetDist,
+                        to.y + Math.sin(offsetAngle) * offsetDist,
+                        4 + Math.random() * 4,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                }
+
+                strokeCount++;
+                // Calcular porcentaje cada 6 movimientos para mantener 60 FPS fluidos
+                if (strokeCount % 6 === 0) {
+                    checkScratchProgress();
+                }
+            }
+
+            /**
+             * Calcula el porcentaje de píxeles transparentes en el canvas
+             */
+            function checkScratchProgress() {
+                if (isRevealed) return;
+
+                try {
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const pixels = imageData.data;
+                    let transparentPixels = 0;
+                    // Muestreo cada 16 píxeles (64 valores RGBA) para máxima velocidad
+                    const stride = 64; 
+                    let sampledCount = 0;
+
+                    for (let i = 3; i < pixels.length; i += stride) {
+                        sampledCount++;
+                        if (pixels[i] < 128) {
+                            transparentPixels++;
+                        }
+                    }
+
+                    const percentage = Math.min(100, Math.round((transparentPixels / sampledCount) * 100));
+                    progressBadge.textContent = `Rascado: ${percentage}%`;
+
+                    if (percentage >= REVEAL_THRESHOLD) {
+                        completeReveal();
+                    }
+                } catch (err) {
+                    // Fallback seguro en caso de error de lectura de imagen
+                    console.warn('No se pudo calcular el progreso de rascado:', err);
+                }
+            }
+
+            /**
+             * Revela automáticamente toda la superficie con transición suave al alcanzar el umbral
+             */
+            function completeReveal() {
+                if (isRevealed) return;
+                isRevealed = true;
+                isDrawing = false;
+
+                // Ocultar moneda flotante si estaba visible
+                coinCursor.style.display = 'none';
+                coinCursor.classList.remove('scratching');
+
+                // Actualizar estado visual
+                progressBadge.textContent = '¡Completado!';
+                progressBadge.classList.remove('bg-[#004d23]', 'text-white');
+                progressBadge.classList.add('bg-[#FFCC00]', 'text-[#004d23]');
+
+                // Desvanecer el resto de la capa metálica
+                canvas.classList.add('canvas-revealed');
+
+                // Animar ligeramente el sello de "SIGUE JUGANDO"
+                prizeContent.classList.add('animate-stamp');
+
+                // Mostrar botón para volver a rascar / nuevo boleto
+                hintText.classList.add('hidden');
+                resetBtn.classList.remove('hidden');
+                resetBtn.classList.add('inline-flex');
+            }
+
+            /**
+             * Reinicia el boleto para jugar de nuevo
+             */
+            function resetTicket() {
+                isRevealed = false;
+                isDrawing = false;
+                lastPoint = null;
+                strokeCount = 0;
+
+                // Restaurar etiquetas y botones
+                progressBadge.textContent = 'Rascado: 0%';
+                progressBadge.classList.add('bg-[#004d23]', 'text-white');
+                progressBadge.classList.remove('bg-[#FFCC00]', 'text-[#004d23]');
+
+                resetBtn.classList.add('hidden');
+                resetBtn.classList.remove('inline-flex');
+                hintText.classList.remove('hidden');
+                prizeContent.classList.remove('animate-stamp');
+
+                // Nuevo número de serie
+                generateSerialNumber();
+
+                // Redibujar capa metálica y hacerla visible
+                initScratchSurface();
+                canvas.classList.remove('canvas-revealed');
+            }
+
+            // ==========================================
+            // EVENTOS DE RATÓN Y CURSOR MONEDA DORADA
+            // ==========================================
+            canvas.addEventListener('mouseenter', (e) => {
+                if (isRevealed) return;
+                coinCursor.style.display = 'block';
+                coinCursor.style.left = `${e.clientX}px`;
+                coinCursor.style.top = `${e.clientY}px`;
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                coinCursor.style.display = 'none';
+                coinCursor.classList.remove('scratching');
+                if (isDrawing) {
+                    isDrawing = false;
+                    checkScratchProgress();
+                }
+            });
+
+            canvas.addEventListener('mousedown', (e) => {
+                if (isRevealed || e.button !== 0) return;
+                isDrawing = true;
+                coinCursor.classList.add('scratching');
+                const coords = getEventCoordinates(e);
+                lastPoint = coords;
+                scratchLine(coords, { x: coords.x + 0.1, y: coords.y + 0.1 });
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (coinCursor.style.display === 'block') {
+                    coinCursor.style.left = `${e.clientX}px`;
+                    coinCursor.style.top = `${e.clientY}px`;
+                }
+
+                if (!isDrawing || isRevealed) return;
+                const coords = getEventCoordinates(e);
+                if (lastPoint) {
+                    scratchLine(lastPoint, coords);
+                }
+                lastPoint = coords;
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    coinCursor.classList.remove('scratching');
+                    lastPoint = null;
+                    checkScratchProgress();
+                }
+            });
+
+            // ==========================================
+            // EVENTOS TÁCTILES (MÓVILES Y TABLETS)
+            // ==========================================
+            canvas.addEventListener('touchstart', (e) => {
+                if (isRevealed) return;
+                e.preventDefault();
+                isDrawing = true;
+                const coords = getEventCoordinates(e);
+                lastPoint = coords;
+                scratchLine(coords, { x: coords.x + 0.1, y: coords.y + 0.1 });
+            }, { passive: false });
+
+            canvas.addEventListener('touchmove', (e) => {
+                if (!isDrawing || isRevealed) return;
+                e.preventDefault();
+                const coords = getEventCoordinates(e);
+                if (lastPoint) {
+                    scratchLine(lastPoint, coords);
+                }
+                lastPoint = coords;
+            }, { passive: false });
+
+            canvas.addEventListener('touchend', () => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    lastPoint = null;
+                    checkScratchProgress();
+                }
+            });
+
+            // Botón de reinicio
+            resetBtn.addEventListener('click', resetTicket);
+
+            // Redimensionado responsivo de ventana (solo si no ha sido rascado aún)
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    if (!isRevealed && strokeCount === 0) {
+                        initScratchSurface();
+                    }
+                }, 200);
+            });
+
+            // Inicialización inicial
+            generateSerialNumber();
+            initScratchSurface();
+        });
     </script>
 </body>
 </html>
